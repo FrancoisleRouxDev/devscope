@@ -1,0 +1,105 @@
+# =============================================================================
+# devscope .gitignore — Rust · Python · Node · Electron/Svelte · OS/editor
+# =============================================================================
+
+# ---- Rust (scanner/) ---------------------------------------------------------
+# Cargo build output (also holds maturin wheels in target/wheels/)
+target/
+# rustc incremental/debug leftovers
+**/*.rs.bk
+*.pdb
+# NOTE: Cargo.lock is deliberately COMMITTED. This is an application, and
+# reproducible builds matter more than for a library.
+
+# ---- Python (api/, scripts/) -------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+# Virtual environments
+.venv/
+venv/
+env/
+# Packaging / build output
+*.egg-info/
+.eggs/
+/build/
+dist/
+wheels/
+*.whl
+# Native extension built in place by `maturin develop` (Linux/macOS/Windows)
+*.so
+*.pyd
+*.dylib
+# PyInstaller
+*.spec
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+# uv: uv.lock IS committed (reproducible API env); only its cache is ignored
+.uv-cache/
+
+# ---- Node (dashboard/) -------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.npm/
+*.tsbuildinfo
+# NOTE: package-lock.json is COMMITTED.
+
+# ---- Vite / Svelte -----------------------------------------------------------
+# dashboard/dist/ is already covered by `dist/` above
+.vite/
+.svelte-kit/
+vite.config.ts.timestamp-*
+vite.config.js.timestamp-*
+
+# ---- Electron / electron-builder ---------------------------------------------
+dashboard/release/
+out/
+# Frozen Python sidecar, generated per OS by scripts/build_sidecar.py
+dashboard/resources/sidecar/
+# Signing material must never be committed
+*.p12
+*.pfx
+*.provisionprofile
+
+# ---- Environment / secrets ---------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# ---- Logs --------------------------------------------------------------------
+*.log
+logs/
+
+# ---- OS files ----------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*~
+.directory
+
+# ---- Editors / IDEs ----------------------------------------------------------
+.idea/
+*.iml
+*.swp
+*.swo
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.fleet/
+.zed/

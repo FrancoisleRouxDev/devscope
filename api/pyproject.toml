@@ -1,0 +1,79 @@
+# =============================================================================
+# api/pyproject.toml — the devscope local API service (FastAPI)
+# =============================================================================
+# This package is a thin HTTP layer: it receives scan requests from the
+# Electron app, calls the Rust scanner (imported as `devscope_scanner`, built
+# from /scanner via maturin), and returns JSON validated by Pydantic.
+#
+# Setup (from repo root — same commands on Windows/macOS/Linux, only the venv
+# activation line differs; see the root README):
+#
+#   python -m venv api/.venv
+#   <activate api/.venv>
+#   pip install ./scanner            # builds the Rust extension via maturin
+#   pip install -e "./api[dev]"      # this package + dev tools
+#
+# Run:  python -m devscope_api --port 8765
+# =============================================================================
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "devscope-api"
+version = "0.1.0"
+description = "Local FastAPI service that exposes the devscope Rust scanner to the dashboard"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.32",            # ASGI server. Plain (not [standard]) keeps the
+                                # PyInstaller bundle small; uvloop is POSIX-only anyway.
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",   # typed config from env vars (DEVSCOPE_*)
+    "devscope-scanner",         # the Rust extension — installed from ../scanner
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",              # required by fastapi.testclient.TestClient
+    "ruff>=0.7",                # lint + format
+    "mypy>=1.13",               # static type checking
+]
+freeze = [
+    "pyinstaller>=6.10",        # bundles Python + deps into a sidecar binary
+]
+
+[project.scripts]
+devscope-api = "devscope_api.__main__:main"
+
+# If you use `uv` instead of pip, this resolves the scanner from the local
+# folder automatically:  uv sync --extra dev
+[tool.uv.sources]
+devscope-scanner = { path = "../scanner" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["devscope_api"]
+
+# --- Tooling -----------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# E/F: pycodestyle+pyflakes, I: isort, B: bugbear, UP: pyupgrade,
+# ASYNC: blocking calls inside async functions (a classic FastAPI bug).
+select = ["E", "F", "I", "B", "UP", "ASYNC", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
