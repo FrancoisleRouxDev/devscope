@@ -1,0 +1,39 @@
+# =============================================================================
+# scanner/pyproject.toml — tells `maturin` how to build the Rust crate as a
+# Python package (wheel) named `devscope-scanner`.
+# =============================================================================
+# Typical workflows (run from /scanner, inside the /api virtualenv):
+#
+#   maturin develop --release     # build + install into the active venv (dev)
+#   maturin build --release       # produce a wheel in target/wheels/ (CI/dist)
+#
+# Or let pip drive maturin via PEP 517:   pip install ./scanner
+#
+# Python code then does:   import devscope_scanner
+# =============================================================================
+
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "devscope-scanner"
+version = "0.1.0"
+description = "Rust-powered file/line scanner for devscope (PyO3 bindings)"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+]
+
+[tool.maturin]
+# Enable the PyO3 bindings only when building for Python.
+features = ["python"]
+# Must match `[lib] name` in Cargo.toml and the #[pymodule] fn in src/python.rs.
+module-name = "devscope_scanner"
+# Ships devscope_scanner.pyi (type stubs) so editors/mypy understand the API.
+include = [{ path = "devscope_scanner.pyi", format = ["sdist", "wheel"] }]

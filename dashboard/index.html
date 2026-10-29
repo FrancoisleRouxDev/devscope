@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+  dashboard/index.html — the renderer's HTML entry point.
+
+  Vite injects the bundled JS/CSS here. In production Electron loads the built
+  copy (dist/index.html) from disk; in dev it loads it from the Vite server.
+
+  The Content-Security-Policy is a second line of defence (after Electron's
+  sandbox/contextIsolation): even if some injected string were rendered as
+  HTML, it could not load remote scripts or talk to anything but our own
+  localhost API.
+    connect-src  http://127.0.0.1:*  → the FastAPI sidecar (random port)
+                 ws://127.0.0.1:5173  → Vite HMR in dev only (harmless in prod)
+-->
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:5173"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>devscope</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

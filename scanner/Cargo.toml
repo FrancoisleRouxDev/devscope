@@ -1,0 +1,67 @@
+# =============================================================================
+# scanner/Cargo.toml — Rust crate manifest for the devscope scanner
+# =============================================================================
+# This crate is the performance-critical core of devscope. It walks a project
+# directory, classifies every source file by language, and counts lines
+# (code / comment / blank). It is built in TWO shapes from the same code:
+#
+#   1. A native Python extension module (cdylib) — built by `maturin` with the
+#      `python` feature enabled, then imported by the FastAPI service in /api.
+#   2. A normal Rust library (rlib) + a small CLI binary (`devscope-scan`) —
+#      used for tests, benchmarks and debugging without Python in the loop.
+#
+# Keeping PyO3 behind a feature flag means `cargo test` / `cargo build` never
+# need a Python interpreter, which keeps CI fast and cross-platform.
+# =============================================================================
+
+[package]
+name = "devscope-scanner"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+description = "Fast recursive file and line counter powering devscope"
+license = "MIT"
+publish = false
+
+[lib]
+# The Python import name. Must match `module-name` in scanner/pyproject.toml
+# and the `#[pymodule]` function name in src/python.rs.
+name = "devscope_scanner"
+# cdylib → .so (Linux) / .dylib→.so (macOS) / .pyd (Windows) for Python.
+# rlib   → lets the CLI binary and integration tests link the crate normally.
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "devscope-scan"
+path = "src/bin/devscope-scan.rs"
+
+[features]
+default = []
+# Enabled only by maturin (see scanner/pyproject.toml). Pulls in PyO3.
+python = ["dep:pyo3"]
+
+[dependencies]
+# --- Planned dependencies (uncomment as the logic lands) ---------------------
+# ignore    = "0.4"    # Parallel dir walker from ripgrep; respects .gitignore,
+#                      # skips hidden files, handles symlink loops safely.
+# rayon     = "1.10"   # Data parallelism for per-file counting.
+# memchr    = "2.7"    # SIMD-accelerated byte search (newline counting).
+# serde     = { version = "1", features = ["derive"] }  # (De)serialise stats.
+# serde_json = "1"     # JSON output for the CLI.
+# thiserror = "2"      # Ergonomic, typed error enums.
+# clap      = { version = "4", features = ["derive"] }  # CLI arg parsing.
+
+# PyO3: Rust ⇄ Python bindings. `abi3-py311` builds ONE wheel per OS/arch that
+# works on every CPython >= 3.11, instead of one wheel per Python version.
+pyo3 = { version = "0.30", features = ["extension-module", "abi3-py311"], optional = true }
+
+[dev-dependencies]
+# tempfile  = "3"      # Throwaway directories for integration tests.
+# criterion = "0.5"    # Statistically sound benchmarks (add a benches/ dir).
+
+[profile.release]
+# Smaller, faster release binaries. `lto` + 1 codegen unit trades compile time
+# for runtime speed — worth it for a hot loop like line counting.
+lto = "fat"
+codegen-units = 1
+strip = true
