@@ -1,0 +1,13 @@
+# Build config for maturin, which compiles this crate into an importable
+# Python wheel (import devscope_scanner).
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "devscope_scanner"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]

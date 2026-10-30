@@ -1,0 +1,15 @@
+{
+  "name": "devscope-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Electron + Svelte desktop shell for devscope",
+  "main": "electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "echo TODO: run vite and electron together",
+    "build": "echo TODO: vite build",
+    "package": "echo TODO: electron-builder for win/mac/linux"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

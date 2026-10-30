@@ -1,0 +1,41 @@
+# ===== Rust =====
+/scanner/target/
+**/*.rs.bk
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+/api/dist/
+/api/build/
+
+# ===== Node / Electron / Svelte / Vite =====
+node_modules/
+/dashboard/dist/
+/dashboard/dist-electron/
+/dashboard/release/
+/dashboard/.svelte-kit/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ===== Env / secrets =====
+.env
+.env.*
+!.env.example
+
+# ===== OS / editors =====
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log

@@ -1,0 +1,14 @@
+# Python project metadata for the local FastAPI service.
+[project]
+name = "devscope-api"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "pydantic",
+  # devscope_scanner is built from ../scanner with maturin
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx", "ruff"]

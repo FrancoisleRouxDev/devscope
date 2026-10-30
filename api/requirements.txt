@@ -1,0 +1,4 @@
+# Runtime dependencies (mirrors pyproject.toml). Pin versions when logic is written.
+fastapi
+uvicorn[standard]
+pydantic
