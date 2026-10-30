@@ -6,10 +6,17 @@
   "main": "electron/main.js",
   "type": "module",
   "scripts": {
-    "dev": "echo TODO: run vite and electron together",
-    "build": "echo TODO: vite build",
+    "dev": "concurrently -k -n vite,electron \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "build": "vite build",
+    "start": "vite build && electron .",
     "package": "echo TODO: electron-builder for win/mac/linux"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "concurrently": "^10.0.6",
+    "electron": "^45.2.0",
+    "svelte": "^5.57.3",
+    "vite": "^8.3.5",
+    "wait-on": "^9.5.1"
+  }
 }

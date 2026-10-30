@@ -21,14 +21,14 @@ entirely locally; nothing leaves your machine.
 | Placeholder files documenting each file's purpose | Done |
 | Architecture docs and data contract (this README) | Done |
 | `.gitignore` for Rust, Python, Node, Electron/Svelte | Done |
-| Rust scanner (`scanner/`) | Not started |
+| Rust scanner (`scanner/`) | Example logic written; builds and unit tests pass |
 | FastAPI service (`api/`) | Not started |
-| Electron shell (`dashboard/electron/`) | Not started |
-| Svelte dashboard UI (`dashboard/src/`) | Not started |
+| Electron shell (`dashboard/electron/`) | Working: opens window, folder dialog, manages API process |
+| Svelte dashboard UI (`dashboard/src/`) | First version: stat cards, language bar, sortable file table |
 | Packaging and CI | Not started |
 
-**Current stage:** project skeleton only. Files contain comments describing
-their purpose; no logic is implemented yet.
+**Current stage:** scanner, Electron shell and Svelte UI have working first versions; the Python API is still a placeholder, so scans do not run end to end yet. Remaining files contain comments describing
+their purpose.
 
 ## Architecture
 
@@ -103,7 +103,7 @@ devscope/
 │   └── tests/
 ├── dashboard/               Electron + Svelte + Vite
 │   ├── package.json  vite.config.js  svelte.config.js  index.html
-│   ├── electron/  main.js  preload.js  backend.js
+│   ├── electron/  main.js  preload.cjs  backend.js
 │   └── src/  main.js  App.svelte  lib/  components/  styles/
 ├── scripts/                 dev.mjs, build.mjs
 ├── .gitignore
@@ -116,10 +116,10 @@ devscope/
 - Python 3.10+
 - Node.js 20+
 
-## Development (planned)
+## Development
 
 ```
-node scripts/dev.mjs      # build scanner, start Vite + Electron (+ API)
+cd dashboard && npm install && npm run dev   # Vite + Electron (Electron starts the API if present)
 node scripts/build.mjs    # production installers for the current OS
 ```
 

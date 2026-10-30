@@ -1,1 +1,31 @@
 /* theme.css - dark-mode design tokens (colors, spacing, radii, fonts) as CSS variables. */
+
+:root {
+  /* surfaces, from page background to raised cards */
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1f2630;
+  --border: #2a313c;
+
+  /* text */
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+
+  /* accent + status */
+  --accent: #58a6ff;
+  --danger: #f85149;
+  --ok: #3fb950;
+
+  /* categorical palette used by the language chart */
+  --series-1: #58a6ff;
+  --series-2: #bc8cff;
+  --series-3: #3fb950;
+  --series-4: #f0883e;
+  --series-5: #db61a2;
+  --series-6: #39c5cf;
+
+  --radius: 12px;
+  --gap: 16px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+}
