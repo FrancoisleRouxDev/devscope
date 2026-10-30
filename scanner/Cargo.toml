@@ -10,8 +10,6 @@ name = "devscope_scanner"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# Planned (pin versions when logic is written):
-# pyo3   - Python bindings
-# ignore - gitignore-aware parallel directory walking
-# rayon  - parallel line counting
-# memchr - fast newline counting
+pyo3 = "0.22"   # Python bindings
+ignore = "0.4"  # gitignore-aware directory walking
+rayon = "1"     # parallel line counting
