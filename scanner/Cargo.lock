@@ -65,6 +65,7 @@ dependencies = [
  "ignore",
  "pyo3",
  "rayon",
+ "walkdir",
 ]
 
 [[package]]

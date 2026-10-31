@@ -52,6 +52,32 @@ pub struct LanguageStats {
     pub blanks: u64,
 }
 
+/// A project folder found under a workspace root.
+#[pyclass(get_all)]
+#[derive(Clone, Debug, Default)]
+pub struct ProjectInfo {
+    pub path: String,
+    pub name: String,
+    /// What marked it as a project: "git", "node", "rust", "python", ...
+    pub kinds: Vec<String>,
+    pub size_bytes: u64,
+    /// Bytes inside rebuildable folders (node_modules, target, venv, ...).
+    pub junk_bytes: u64,
+    pub junk_dirs: Vec<String>,
+    /// Newest modification time (unix seconds) of files outside junk and .git.
+    pub last_modified: i64,
+}
+
+/// One possible leaked secret. The value itself is never returned.
+#[pyclass(get_all)]
+#[derive(Clone, Debug, Default)]
+pub struct SecretFinding {
+    pub path: String,
+    /// 1-based line number; 0 for whole-file findings (e.g. a private key file).
+    pub line: u64,
+    pub kind: String,
+}
+
 /// Everything the API needs to answer one scan request.
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Default)]

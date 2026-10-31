@@ -13,3 +13,4 @@ crate-type = ["cdylib", "rlib"]
 pyo3 = "0.22"   # Python bindings
 ignore = "0.4"  # gitignore-aware directory walking
 rayon = "1"     # parallel line counting
+walkdir = "2"   # size/mtime walk inside discovered projects

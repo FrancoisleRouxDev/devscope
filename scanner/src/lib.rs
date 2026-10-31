@@ -5,7 +5,9 @@
 // parallel, aggregate. (Example logic.)
 
 mod counter;
+mod discovery;
 mod languages;
+mod secrets;
 mod types;
 mod walker;
 
@@ -17,7 +19,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rayon::prelude::*;
 
-use types::{FileStats, LanguageStats, ScanOptions, ScanResult};
+use types::{FileStats, LanguageStats, ProjectInfo, ScanOptions, ScanResult, SecretFinding};
 
 const LARGEST_FILES_LIMIT: usize = 10;
 
@@ -35,6 +37,28 @@ fn scan_project(py: Python<'_>, path: &str, options: Option<ScanOptions>) -> PyR
     });
 
     Ok(py.allow_threads(|| scan(root, &opts)))
+}
+
+/// Find projects under `root` (a workspace folder) and measure their size.
+#[pyfunction]
+#[pyo3(signature = (root, max_depth=4))]
+fn discover_projects(py: Python<'_>, root: &str, max_depth: usize) -> PyResult<Vec<ProjectInfo>> {
+    let root = Path::new(root);
+    if !root.is_dir() {
+        return Err(PyValueError::new_err(format!("not a directory: {}", root.display())));
+    }
+    Ok(py.allow_threads(|| discovery::discover(root, max_depth)))
+}
+
+/// Look for possible leaked secrets inside one project folder.
+#[pyfunction]
+fn find_secrets(py: Python<'_>, path: &str) -> PyResult<Vec<SecretFinding>> {
+    let root = Path::new(path);
+    if !root.is_dir() {
+        return Err(PyValueError::new_err(format!("not a directory: {path}")));
+    }
+    let opts = ScanOptions { extra_ignores: Vec::new(), max_file_size: 5_000_000 };
+    Ok(py.allow_threads(|| secrets::find_secrets(root, &opts)))
 }
 
 /// Pure-Rust scan, kept separate from the PyO3 wrapper so it is easy to test.
@@ -89,6 +113,10 @@ fn devscope_scanner(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<FileStats>()?;
     m.add_class::<LanguageStats>()?;
     m.add_class::<ScanResult>()?;
+    m.add_class::<ProjectInfo>()?;
+    m.add_class::<SecretFinding>()?;
     m.add_function(wrap_pyfunction!(scan_project, m)?)?;
+    m.add_function(wrap_pyfunction!(discover_projects, m)?)?;
+    m.add_function(wrap_pyfunction!(find_secrets, m)?)?;
     Ok(())
 }
