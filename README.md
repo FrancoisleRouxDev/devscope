@@ -5,6 +5,32 @@ inside any folder on your computer: what takes the space, what is old, what is
 clutter or duplicated, and, for code folders, which projects have unsaved work
 or leaked secrets. It runs entirely on your machine and never changes your files.
 
+## Download
+
+Get the installer from the **[Releases page](https://github.com/FrancoisleRouxDev/devscope/releases/latest)**.
+
+> **Early preview.** devscope is new and the installers are **not yet code-signed**, so your
+> computer will warn you about an unknown publisher. That warning means "this publisher is not
+> verified", not "this file is malware". You can check the file really came from this repository
+> (see below) before you run it.
+
+- **Windows 10/11 (tested):** download `devscope Setup <version>.exe` and run it. If SmartScreen says
+  "Windows protected your PC", click **More info**, then **Run anyway**. It installs for your user
+  only and does not need administrator rights.
+- **macOS and Linux:** installers are built too (`.dmg`, `.AppImage`, `.deb`) but have **not been tested yet**.
+  On macOS the unsigned app will be blocked until you allow it under System Settings, Privacy & Security.
+
+**Check your download.** Every installer is built by GitHub Actions from this source and has a signed
+build-provenance record. With the [GitHub CLI](https://cli.github.com/):
+
+```
+gh attestation verify "devscope Setup 0.1.0.exe" --repo FrancoisleRouxDev/devscope
+```
+
+If that prints a success message, the file is the one this repository built. devscope works fully
+offline; it only contacts `github.com` to look for a newer version. To report a security problem see
+[SECURITY.md](SECURITY.md).
+
 ## What it is and what it's for
 
 Point devscope at any folder (Downloads, Documents, Desktop, a whole drive) and
@@ -57,7 +83,8 @@ Everything is computed locally by a fast Rust core. Nothing leaves your machine.
 | Dependency vulnerability check | Not started |
 | One-click cleanup of junk folders (with dry run) | Not started |
 | Scan history and trends | Not started |
-| Packaging (installers) and CI | Not started |
+| Packaging: frozen API, Electron bundle, Windows installer | Built and tested on Windows: the installed app starts its own engine and analyses folders. The installer itself was built but not run through its install wizard |
+| macOS and Linux installers, GitHub Actions workflows (`ci.yml`, `release.yml`), auto-update, code signing | Written, not run yet (they need GitHub's macOS/Linux machines and your signing certificates) |
 
 **Known limitations**
 - The language table covers Rust, Python, JS, TS, Svelte, HTML, CSS, TOML and
@@ -136,8 +163,9 @@ that is not a git repository. The same shapes are defined in
 
 ### Process lifecycle
 
-- Electron main picks a free port and spawns the API on `127.0.0.1:<port>`,
-  passing its own process id in `DEVSCOPE_PARENT_PID`.
+- Electron main picks a free port and spawns the API on `127.0.0.1:<port>`
+  (uvicorn from the venv in development, the bundled `devscope-api` executable in the
+  installed app), passing its own process id in `DEVSCOPE_PARENT_PID`.
 - It polls `/health` until ready; if the API cannot start, the UI still opens and shows "API offline".
 - On quit, Electron terminates the API. If Electron crashes or is force-killed, the
   API notices (watchdog) and exits within a few seconds.
@@ -147,8 +175,8 @@ that is not a git repository. The same shapes are defined in
 
 - Paths use `pathlib` (Python), `std::path` (Rust) and `path` (Node); never string concatenation.
 - Python venv location (`Scripts\python.exe` vs `bin/python`) is handled in `backend.js`.
-- The Rust extension is built per-OS with maturin; the Python API is frozen (e.g. PyInstaller) for packaged builds.
-- `electron-builder` is planned to produce NSIS/MSI (Windows), DMG (macOS), AppImage/deb (Linux).
+- The Rust extension is built per-OS with maturin; the Python API is frozen with PyInstaller for packaged builds.
+- `electron-builder` produces an NSIS installer (Windows), DMG (macOS), AppImage and deb (Linux).
 - Developed and tested on Windows so far; macOS and Linux are untested.
 
 ## Repository layout
@@ -161,7 +189,8 @@ devscope/
 │   └── src/  lib.rs  walker.rs  counter.rs  languages.rs  types.rs
 │             folder.rs  duplicates.rs  discovery.rs  secrets.rs
 ├── api/                     FastAPI service
-│   ├── pyproject.toml  requirements.txt
+│   ├── pyproject.toml  requirements.txt  requirements-build.txt
+│   ├── run.py               entry point of the packaged (frozen) API
 │   ├── devscope_api/  main.py  config.py  schemas.py  scanner_bridge.py
 │   │                  watchdog.py  routes/ (health.py, scan.py)
 │   └── tests/
@@ -169,7 +198,8 @@ devscope/
 │   ├── package.json  vite.config.js  svelte.config.js  index.html
 │   ├── electron/  main.js  preload.cjs  backend.js
 │   └── src/  main.js  App.svelte  lib/  components/  styles/
-├── scripts/                 dev.mjs, build.mjs (placeholders)
+├── scripts/                 build.mjs (installer pipeline), dev.mjs (placeholder)
+├── .github/workflows/       ci.yml (tests), release.yml (installers for 3 OSes)
 ├── .gitignore
 └── README.md
 ```
@@ -194,10 +224,91 @@ npm run dev
 
 Tests: `cargo test` in `scanner/`, `python -m pytest` in `api/`.
 
+## Security and privacy
+
+**What it does with your data.** devscope reads file names, sizes and dates, and (for the
+duplicate and secrets checks) file contents, all on your own computer. It never uploads
+anything, has no telemetry and never modifies or deletes your files. It works fully offline;
+the only network request the installed app makes is a check for a newer version on
+`github.com` at start-up, and that is skipped silently when there is no connection.
+
+**How it is protected**
+- The window is sandboxed with context isolation, no Node access and a Content-Security-Policy
+  that only allows the app's own script and connections to `127.0.0.1`. It cannot open pop-ups
+  or navigate away, and every browser permission (camera, location, ...) is denied. Electron
+  features attackers abuse (`runAsNode`, `NODE_OPTIONS`, `--inspect`, loading code from outside
+  the app archive) are switched off.
+- The engine listens on `127.0.0.1` only, on a random port, and requires a random one-time token
+  that exists only in memory, so other programs on the computer cannot use it. It also exits by
+  itself if the app dies.
+- **Hostile folders.** Analysing a downloaded folder must never run code from it. Git runs programs
+  named in a repository's own config, so devscope switches off `core.fsmonitor`, never lets git write
+  to a repository, and does not run git at all on repositories whose config defines filters or
+  includes other files (they are shown as "git not checked"). This is covered by tests.
+- Secret findings contain only the file, line and kind, never the secret itself.
+- Dependencies that ship in the app have no known vulnerabilities (`npm audit --omit=dev`).
+
+**Verifying a download.** Installers come only from this repository's GitHub Releases.
+Each release is built by GitHub Actions and carries a signed build-provenance attestation, so you can
+check that a file really was built from this source:
+
+```
+gh attestation verify "devscope Setup 0.1.0.exe" --repo FrancoisleRouxDev/devscope
+```
+
+Until the installers are code-signed (see "Signing" below) Windows SmartScreen and macOS Gatekeeper
+will still warn about an unknown publisher.
+
+## Building an installer
+
+The installed app is fully self-contained: Python, Rust and Node are **not** needed
+on the user's machine. The Python API is frozen into an executable
+(`devscope-api`) with PyInstaller, bundled inside the Electron app, and started on
+a free local port exactly like in development. Nothing is hosted in the cloud:
+devscope reads your local disk, so the backend has to run on your computer.
+
+```
+node scripts/build.mjs          # builds the installer for the OS you are on
+node scripts/build.mjs --dir    # unpacked app folder only (faster, for testing)
+```
+
+The script creates `api/.venv-build`, compiles the Rust scanner into it
+(`maturin`), freezes the API (`PyInstaller`, output `api/dist/devscope-api/`),
+builds the UI (`vite`) and packages everything (`electron-builder`). The result is in
+`dashboard/release/`: an NSIS installer (`.exe`) on Windows, a `.dmg` on macOS, an
+`.AppImage` and `.deb` on Linux. Prerequisites are the same as for development.
+
+Because the Rust module and the frozen API are native, **each OS must be built on that
+OS**. The GitHub Actions workflow `.github/workflows/release.yml` does this for all three:
+push a tag such as `v0.1.0` and it builds the installers and attaches them to a GitHub
+Release. `.github/workflows/ci.yml` runs the tests on every push.
+
+**Updates.** Installed apps check the project's GitHub Releases on start-up
+(`electron-updater`) and offer a newer version when there is one. If the check fails
+(offline, no release yet, private repository) it is silently skipped.
+
+**Signing.** Without signing, Windows SmartScreen and macOS Gatekeeper warn users about
+the app, and macOS may refuse to open it. To sign:
+- Windows: buy a code-signing certificate and add the repository secrets `CSC_LINK`
+  (the `.pfx`, base64 or a URL) and `CSC_KEY_PASSWORD`.
+- macOS: join the Apple Developer Program, add a "Developer ID Application" certificate
+  with the same two secrets, then enable notarization in the `mac` section of
+  `dashboard/package.json` and add `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID`.
+- Linux needs no signing.
+
+**Troubleshooting the build.**
+- The scanner is compiled with plain `cargo` and copied into the build venv, not with
+  `maturin develop`. On one Windows machine `maturin` froze while compiling and its
+  executable disappeared from the venv; `cargo` was unaffected. The build also uses its
+  own folders (`api/.venv-build`, `scanner/target-build`) so a running `npm run dev`
+  session, which keeps the scanner file open, can never block it.
+- If a build step fails with "Access is denied" on a freshly written file, antivirus or an
+  indexer is briefly locking it. Re-run the build; the copy step already retries.
+
 ## Roadmap
 
 1. Dependency vulnerability check across all projects (reads `package.json`, `Cargo.lock`, `requirements.txt`).
 2. Safe cleanup: move clutter, duplicates and junk folders to the recycle bin, with a preview and confirmation.
 3. Scan history and trends.
 4. Wider language support and tuning of secret detection.
-5. Packaging and CI for all three platforms.
+5. Run and verify the macOS and Linux builds, then set up code signing.

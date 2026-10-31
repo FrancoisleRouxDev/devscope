@@ -3,11 +3,13 @@
 // contract in api/devscope_api/schemas.py.
 
 let baseUrl = null;
+let token = null;
 
-// Ask Electron (through the preload bridge) where the API is listening.
-// Outside Electron (plain browser dev) there is no bridge, so we get null.
+// Ask Electron (through the preload bridge) where the API is listening and for the one-time
+// token it requires. Outside Electron (plain browser dev) there is no bridge, so we get null.
 export async function connect() {
   baseUrl = (await window.devscope?.getApiBaseUrl?.()) ?? null;
+  token = (await window.devscope?.getApiToken?.()) ?? null;
   return baseUrl !== null;
 }
 
@@ -21,7 +23,7 @@ async function post(endpoint, body) {
   if (!baseUrl) throw new Error('API is offline');
   const res = await fetch(`${baseUrl}${endpoint}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Devscope-Token': token ?? '' },
     body: JSON.stringify(body),
   });
   if (!res.ok) {

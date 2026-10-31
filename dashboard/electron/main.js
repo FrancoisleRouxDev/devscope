@@ -3,10 +3,10 @@
 // index.html (prod), starts/stops the Python API via backend.js, and
 // handles native dialogs such as "choose project folder".
 
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { getBaseUrl, startBackend, stopBackend } from './backend.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { getBaseUrl, getToken, startBackend, stopBackend } from './backend.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEV_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
@@ -29,6 +29,22 @@ function createWindow() {
   });
 
   win.once('ready-to-show', () => win.show());
+
+  // SECURITY: the window only ever shows our own UI. Refuse pop-ups, and refuse to navigate
+  // anywhere else (a link or script must not be able to load a web page into this window,
+  // where it would sit next to the bridge to the file system).
+  const ownPage = app.isPackaged ? pathToFileURL(path.join(__dirname, '../dist/index.html')).href : DEV_URL;
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(ownPage.split('#')[0])) event.preventDefault();
+  });
+
+  // Development only: F12 toggles DevTools (the menu that normally offers it is removed below).
+  if (!app.isPackaged) {
+    win.webContents.on('before-input-event', (_event, input) => {
+      if (input.type === 'keyDown' && input.key === 'F12') win.webContents.toggleDevTools();
+    });
+  }
 
   if (app.isPackaged) {
     win.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -60,15 +76,39 @@ ipcMain.handle('folders:known', () => ({
   desktop: app.getPath('desktop'),
 }));
 
-// URL of the Python API (null while it is offline).
+// URL of the Python API (null while it is offline) and the one-time token it requires.
 ipcMain.handle('api:baseUrl', () => getBaseUrl());
+ipcMain.handle('api:token', () => getToken());
 
-app.whenReady().then(async () => {
-  // Start the API first so the UI can connect as soon as it loads.
-  const result = await startBackend();
-  if (!result.ok) console.warn(`API not available (${result.reason}); UI will show offline.`);
+// Installed builds look for a newer release on GitHub (publish settings in package.json),
+// download it in the background and offer to install it. Skipped during development, and
+// any failure (offline, private repo, no release yet) is ignored so it never blocks the app.
+async function checkForUpdates() {
+  if (!app.isPackaged) return;
+  try {
+    const { default: updater } = await import('electron-updater');
+    await updater.autoUpdater.checkForUpdatesAndNotify();
+  } catch (err) {
+    console.warn('Update check skipped:', err.message);
+  }
+}
+
+app.whenReady().then(() => {
+  // Start the engine in the background. The window opens straight away and the UI keeps asking
+  // for the engine until it is ready (a first launch can take a while: antivirus scans new files).
+  startBackend().then((result) => {
+    if (!result.ok) console.warn(`API not available (${result.reason}); UI will show offline.`);
+  });
+
+  // The app needs no camera, microphone, location, notifications and so on: deny every request.
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+
+  // No File/Edit/View/Window menu bar on Windows and Linux; the app has its own UI.
+  // macOS keeps its system menu, which it needs for Quit and Copy/Paste.
+  if (process.platform !== 'darwin') Menu.setApplicationMenu(null);
 
   createWindow();
+  checkForUpdates();
 
   // macOS: re-create the window when the dock icon is clicked and none are open.
   app.on('activate', () => {

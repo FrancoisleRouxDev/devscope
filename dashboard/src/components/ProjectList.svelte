@@ -10,6 +10,9 @@
   // Short git badges: what could be lost or forgotten in this project?
   function badges(p) {
     if (!p.git) return [{ text: 'no git', tone: 'warn' }];
+    // Present but unread: git is missing, the repo belongs to another user, or its config
+    // can run programs (skipped on purpose, see api/devscope_api/scanner_bridge.py).
+    if (!p.git.checked) return [{ text: 'git not checked', tone: 'warn' }];
     const out = [];
     if (p.git.uncommitted) out.push({ text: `${p.git.uncommitted} uncommitted`, tone: 'warn' });
     if (!p.git.has_remote) out.push({ text: 'no remote', tone: 'danger' });

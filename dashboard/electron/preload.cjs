@@ -9,6 +9,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('devscope', {
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   getApiBaseUrl: () => ipcRenderer.invoke('api:baseUrl'),
+  getApiToken: () => ipcRenderer.invoke('api:token'),
   reveal: (target) => ipcRenderer.invoke('shell:reveal', target),
   getKnownFolders: () => ipcRenderer.invoke('folders:known'),
 });

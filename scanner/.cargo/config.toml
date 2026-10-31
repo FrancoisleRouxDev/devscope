@@ -1,0 +1,8 @@
+# On macOS a Python extension module must be allowed to leave Python's own symbols
+# unresolved at link time (they are provided by the interpreter that loads it).
+# maturin adds this flag automatically; scripts/build.mjs builds with plain cargo, so set it here.
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]

@@ -1,22 +1,79 @@
 {
-  "name": "devscope-dashboard",
+  "name": "devscope",
+  "productName": "devscope",
   "version": "0.1.0",
   "private": true,
-  "description": "Electron + Svelte desktop shell for devscope",
+  "description": "See what is inside any folder: space, clutter, duplicates, and code project health",
+  "author": "Francois le Roux <francoislerouxdev@gmail.com>",
+  "homepage": "https://github.com/FrancoisleRouxDev/devscope",
   "main": "electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n vite,electron \"vite\" \"wait-on tcp:5173 && electron .\"",
     "build": "vite build",
     "start": "vite build && electron .",
-    "package": "echo TODO: electron-builder for win/mac/linux"
+    "package": "vite build && electron-builder --publish never"
+  },
+  "build": {
+    "appId": "com.francoisleroux.devscope",
+    "productName": "devscope",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**",
+      "dist/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../api/dist/devscope-api",
+        "to": "api"
+      }
+    ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "maintainer": "Francois le Roux <francoislerouxdev@gmail.com>"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "FrancoisleRouxDev",
+      "repo": "devscope"
+    }
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "concurrently": "^10.0.6",
     "electron": "^45.2.0",
+    "electron-builder": "^26.18.0",
     "svelte": "^5.57.3",
     "vite": "^8.3.5",
     "wait-on": "^9.5.1"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
   }
 }

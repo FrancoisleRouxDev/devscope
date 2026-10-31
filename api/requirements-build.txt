@@ -1,0 +1,4 @@
+# Extra tools needed to build the packaged app (on top of requirements.txt).
+# The Rust scanner is compiled with cargo by scripts/build.mjs, so maturin is not needed here.
+-r requirements.txt
+pyinstaller

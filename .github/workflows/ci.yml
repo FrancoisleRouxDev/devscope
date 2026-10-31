@@ -1,0 +1,39 @@
+# ci.yml - runs the tests and a UI build on every push and pull request.
+name: CI
+
+on:
+  push:
+    branches: [main, Development]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust tests
+        working-directory: scanner
+        run: cargo test
+
+      - name: Build the scanner into a venv and run the API tests
+        run: |
+          python -m venv api/.venv
+          source api/.venv/bin/activate
+          pip install -r api/requirements.txt pytest httpx maturin
+          (cd scanner && maturin develop --release)
+          (cd api && python -m pytest -q)
+
+      - name: Build the UI
+        working-directory: dashboard
+        run: |
+          npm ci
+          npm run build

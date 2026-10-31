@@ -13,9 +13,17 @@
   import ProjectsView from './components/ProjectsView.svelte';
 
   // Runs once when the window opens: find out whether the API is up, and which OS folders exist.
+  let starting = $state(true); // still waiting for the engine to come up
+
   onMount(async () => {
-    $apiOnline = await connect();
     $known = await getKnownFolders();
+    // The window opens before the engine is ready, and a first launch can be slow (antivirus
+    // scans new files), so keep asking for up to a minute before declaring it offline.
+    for (let i = 0; i < 60 && !$apiOnline; i++) {
+      $apiOnline = await connect();
+      if (!$apiOnline) await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    starting = false;
   });
 
   // Run an API task with shared loading/error handling.
@@ -114,7 +122,7 @@
       </div>
     </div>
     <div class="right">
-      <span class="status" class:online={$apiOnline}><i></i>{$apiOnline ? 'Engine ready' : 'Engine offline'}</span>
+      <span class="status" class:online={$apiOnline}><i></i>{$apiOnline ? 'Engine ready' : starting ? 'Starting engine…' : 'Engine offline'}</span>
       <ProjectPicker onpick={choose} disabled={$loading || !$apiOnline} label="Choose folder…" />
     </div>
   </header>
@@ -156,7 +164,11 @@
           {/each}
         </div>
       {:else}
-        <p class="offline">The analysis engine is not running, so folders cannot be analysed yet.</p>
+        {#if starting}
+          <p>Starting the analysis engine… the first launch can take a few seconds.</p>
+        {:else}
+          <p class="offline">The analysis engine is not running, so folders cannot be analysed yet.</p>
+        {/if}
       {/if}
     </div>
   {/if}

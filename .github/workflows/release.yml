@@ -1,0 +1,80 @@
+# release.yml - builds the installers for Windows, macOS and Linux.
+#
+# Trigger it by pushing a version tag:   git tag v0.1.0 && git push origin v0.1.0
+# (or run it by hand from the Actions tab). Each OS builds on its own runner because
+# the Rust module and the frozen API are native code. Tagged builds are attached to a
+# GitHub Release, which is also where installed apps look for updates.
+#
+# Signing is optional. Add these repository secrets to turn it on (see README, "Signing"):
+#   CSC_LINK, CSC_KEY_PASSWORD   - a code-signing certificate (.p12/.pfx, base64 or URL)
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # lets the job create the GitHub Release
+  id-token: write # needed to sign the build provenance attestation
+  attestations: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build the installer
+        run: node scripts/build.mjs
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      # Records, in a signed public log, that these exact files were built from this repository
+      # by this workflow. Anyone can check a download with:
+      #   gh attestation verify <installer file> --repo FrancoisleRouxDev/devscope
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dashboard/release/*.exe
+            dashboard/release/*.dmg
+            dashboard/release/*.AppImage
+            dashboard/release/*.deb
+
+      - name: Keep the installers as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: devscope-${{ matrix.os }}
+          path: |
+            dashboard/release/*.exe
+            dashboard/release/*.dmg
+            dashboard/release/*.AppImage
+            dashboard/release/*.deb
+            dashboard/release/*.yml
+            dashboard/release/*.blockmap
+
+      - name: Attach to the GitHub Release (tagged builds only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dashboard/release/*.exe
+            dashboard/release/*.dmg
+            dashboard/release/*.AppImage
+            dashboard/release/*.deb
+            dashboard/release/*.yml
+            dashboard/release/*.blockmap

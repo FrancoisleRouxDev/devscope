@@ -1,5 +1,6 @@
 # ===== Rust =====
 /scanner/target/
+/scanner/target-build/
 **/*.rs.bk
 
 # ===== Python =====
@@ -9,6 +10,7 @@ __pycache__/
 *.pyd
 *.egg-info/
 .venv/
+.venv-build/
 venv/
 .pytest_cache/
 .mypy_cache/
@@ -31,6 +33,10 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+
+# ===== Local reports and build logs =====
+BUILD_REPORT.md
+build-run*.log
 
 # ===== OS / editors =====
 .DS_Store

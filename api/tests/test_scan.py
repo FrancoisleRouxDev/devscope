@@ -77,3 +77,64 @@ def test_secrets_found_without_value(tmp_path):
     found = client.post("/secrets", json={"path": str(proj)}).json()
     assert {"path": str(proj / "config.txt"), "line": 1, "kind": "aws-access-key"} in found
     assert "AKIA" not in str(found)
+
+
+# --- security -------------------------------------------------------------------------------
+
+def make_git_repo(path):
+    """A minimal git repo (needs the git CLI, which the app itself also requires)."""
+    import subprocess
+
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(path)], check=True)
+    (path / "a.txt").write_text("hi")
+
+
+def test_hostile_git_config_cannot_run_programs(tmp_path):
+    """A repo whose config names a program (core.fsmonitor) must not make us execute it."""
+    import subprocess
+
+    from devscope_api import scanner_bridge
+
+    repo = tmp_path / "evil"
+    make_git_repo(repo)
+    marker = tmp_path / "PWNED.txt"
+    script = tmp_path / "evil.sh"
+    script.write_text(f'#!/bin/sh\necho ran > "{marker.as_posix()}"\nexit 1\n')
+    subprocess.run(["git", "-C", str(repo), "config", "core.fsmonitor", script.as_posix()], check=True)
+
+    status = scanner_bridge.git_status(str(repo))
+    assert not marker.exists(), "git ran a program named in the repository's own config"
+    assert status is not None and status.uncommitted == 1  # still reports normally
+
+
+def test_repo_with_filter_config_is_not_checked(tmp_path):
+    """Clean filters run during `git status`; repos defining them are skipped and flagged."""
+    import subprocess
+
+    from devscope_api import scanner_bridge
+
+    repo = tmp_path / "filtered"
+    make_git_repo(repo)
+    subprocess.run(["git", "-C", str(repo), "config", "filter.x.clean", "cat"], check=True)
+
+    status = scanner_bridge.git_status(str(repo))
+    assert status is not None and status.checked is False
+
+
+def test_new_repo_branch_name(tmp_path):
+    from devscope_api import scanner_bridge
+
+    repo = tmp_path / "fresh"
+    make_git_repo(repo)  # no commits yet: git prints "No commits yet on <branch>"
+    status = scanner_bridge.git_status(str(repo))
+    assert status.branch not in (None, "No")
+
+
+def test_api_requires_token_when_configured(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEVSCOPE_TOKEN", "s3cret")
+    body = {"path": str(tmp_path)}
+    assert client.get("/health").status_code == 200  # open on purpose
+    assert client.post("/folder", json=body).status_code == 401
+    assert client.post("/folder", json=body, headers={"X-Devscope-Token": "wrong"}).status_code == 401
+    assert client.post("/folder", json=body, headers={"X-Devscope-Token": "s3cret"}).status_code == 200

@@ -4,6 +4,8 @@
 # (Routes are plain `def`, which FastAPI already runs in a thread pool; the
 # Rust calls also release the GIL, so scans run in parallel.)
 
+import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -86,15 +88,35 @@ def find_secrets(path: str) -> list[SecretOut]:
     return [SecretOut(path=s.path, line=s.line, kind=s.kind) for s in scanner.find_secrets(_require_dir(path))]
 
 
+# SECURITY: a repository's own .git/config is untrusted when the folder was downloaded or
+# cloned from somewhere. Git runs programs named in it (core.fsmonitor, and "clean" filters
+# during `git status`), so merely analysing a hostile folder could run attacker code.
+# We (1) switch off fsmonitor on every call, and (2) do not run git at all on repos whose config
+# defines filters or includes other config files, reporting them as "not checked" instead.
+_RISKY_CONFIG = re.compile(r"^\s*\[\s*(filter|include|includeif)\b", re.IGNORECASE | re.MULTILINE)
+
+
+def _config_is_risky(project: str) -> bool:
+    git_dir = Path(project) / ".git"
+    if not git_dir.is_dir():
+        return True  # worktree or submodule: its real config lives elsewhere and is not vetted
+    try:
+        return bool(_RISKY_CONFIG.search((git_dir / "config").read_text(errors="replace")))
+    except OSError:
+        return True
+
+
 def _git(project: str, *args: str) -> str | None:
-    """Run a git command in `project`; None if git is missing or the command fails."""
+    """Run a read-only git command in `project`; None if git is missing or the command fails."""
     try:
         out = subprocess.run(
-            ["git", "-C", project, *args],
+            ["git", "-C", project, "-c", "core.fsmonitor=false", *args],
             capture_output=True,
             text=True,
             timeout=GIT_TIMEOUT,
             check=True,
+            # never write to the repo's index while looking, and never wait for a password
+            env={**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0"},
         )
         return out.stdout
     except (OSError, subprocess.SubprocessError):
@@ -102,16 +124,26 @@ def _git(project: str, *args: str) -> str | None:
 
 
 def git_status(project: str) -> GitStatus | None:
-    """Branch, uncommitted file count, unpushed commits and remote presence."""
+    """Branch, uncommitted file count, unpushed commits and remote presence.
+
+    None means "not a git repository". `checked=False` means it is one, but we could not
+    (or chose not to, see above) read its state.
+    """
     if not (Path(project) / ".git").exists():
         return None
+    not_checked = GitStatus(branch=None, uncommitted=0, ahead=0, has_remote=False, checked=False)
+    if _config_is_risky(project):
+        return not_checked
     porcelain = _git(project, "status", "--porcelain=v1", "--branch")
     if porcelain is None:
-        return None
+        return not_checked
 
     lines = porcelain.splitlines()
     header = lines[0] if lines else ""  # e.g. "## main...origin/main [ahead 2]"
-    branch = header.removeprefix("## ").split("...")[0].split(" ")[0] or None
+    if header.startswith("## No commits yet on "):
+        branch = header.removeprefix("## No commits yet on ").strip() or None
+    else:
+        branch = header.removeprefix("## ").split("...")[0].split(" ")[0] or None
     ahead = 0
     if "[ahead " in header:
         ahead = int(header.split("[ahead ")[1].split("]")[0].split(",")[0])

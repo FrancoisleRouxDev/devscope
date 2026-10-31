@@ -49,6 +49,7 @@ class GitStatus(BaseModel):
     uncommitted: int  # changed or untracked files
     ahead: int  # commits not yet pushed
     has_remote: bool
+    checked: bool = True  # False: it is a git repo, but its state was not read (see scanner_bridge)
 
 
 class ProjectOut(BaseModel):
