@@ -17,8 +17,8 @@ Get the installer from the **[Releases page](https://github.com/FrancoisleRouxDe
 - **Windows 10/11 (tested):** download `devscope Setup <version>.exe` and run it. If SmartScreen says
   "Windows protected your PC", click **More info**, then **Run anyway**. It installs for your user
   only and does not need administrator rights.
-- **macOS and Linux:** installers are built too (`.dmg`, `.AppImage`, `.deb`) but have **not been tested yet**.
-  On macOS the unsigned app will be blocked until you allow it under System Settings, Privacy & Security.
+- **macOS and Linux:** not available yet. The code is cross-platform and installers are configured,
+  but they have not been built or tested, so they are not published. They will follow.
 
 **Check your download.** Every installer is built by GitHub Actions from this source and has a signed
 build-provenance record. With the [GitHub CLI](https://cli.github.com/):
@@ -279,9 +279,10 @@ builds the UI (`vite`) and packages everything (`electron-builder`). The result 
 `.AppImage` and `.deb` on Linux. Prerequisites are the same as for development.
 
 Because the Rust module and the frozen API are native, **each OS must be built on that
-OS**. The GitHub Actions workflow `.github/workflows/release.yml` does this for all three:
-push a tag such as `v0.1.0` and it builds the installers and attaches them to a GitHub
-Release. `.github/workflows/ci.yml` runs the tests on every push.
+OS**. The GitHub Actions workflow `.github/workflows/release.yml` builds the Windows installer:
+push a tag such as `v0.1.0` and it builds it and attaches it to a GitHub Release (macOS and Linux
+are configured but switched off until they have been tested; the workflow file explains how to
+re-enable them). `.github/workflows/ci.yml` runs the tests on every push.
 
 **Updates.** Installed apps check the project's GitHub Releases on start-up
 (`electron-updater`) and offer a newer version when there is one. If the check fails
