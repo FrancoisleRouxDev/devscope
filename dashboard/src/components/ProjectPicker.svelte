@@ -1,4 +1,4 @@
-<!-- ProjectPicker.svelte - button/drop zone to choose a project folder via the preload bridge. -->
+<!-- ProjectPicker.svelte - button to choose a folder via the preload bridge. -->
 <script>
   // `onpick` is a callback the parent passes in; we call it when clicked.
   // `$props()` is how Svelte 5 components receive inputs.
@@ -9,12 +9,15 @@
 
 <style>
   .picker {
-    background: var(--accent);
-    color: #0d1117;
+    background: var(--accent-gradient);
+    color: #fff;
     border: 0;
-    border-radius: var(--radius);
-    padding: 10px 18px;
-    font-weight: 600;
+    border-radius: var(--radius-sm);
+    padding: 10px 20px;
+    font-weight: 650;
+    box-shadow: 0 6px 18px rgba(91, 140, 255, 0.28);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
   }
-  .picker:disabled { opacity: 0.5; cursor: progress; }
+  .picker:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(91, 140, 255, 0.4); }
+  .picker:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

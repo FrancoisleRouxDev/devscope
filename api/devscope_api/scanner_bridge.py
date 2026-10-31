@@ -11,7 +11,13 @@ import devscope_scanner as scanner
 
 from .config import GIT_TIMEOUT
 from .schemas import (
+    AgeBucketOut,
+    CategoryOut,
+    DirOut,
+    DuplicateGroupOut,
     FileStat,
+    FolderFileOut,
+    FolderResponse,
     GitStatus,
     LanguageStat,
     ProjectOut,
@@ -47,6 +53,33 @@ def scan_project(path: str) -> ScanResponse:
             for f in r.largest_files
         ],
     )
+
+
+def _folder_file(f) -> FolderFileOut:
+    return FolderFileOut(path=f.path, size=f.size, modified=f.modified, category=f.category, reason=f.reason)
+
+
+def analyze_folder(path: str) -> FolderResponse:
+    r = scanner.analyze_folder(_require_dir(path))
+    return FolderResponse(
+        root=r.root,
+        total_files=r.total_files,
+        total_bytes=r.total_bytes,
+        duration_ms=r.duration_ms,
+        project_count=r.project_count,
+        categories=[CategoryOut(name=c.name, files=c.files, bytes=c.bytes) for c in r.categories],
+        largest_files=[_folder_file(f) for f in r.largest_files],
+        largest_dirs=[DirOut(path=d.path, name=d.name, files=d.files, bytes=d.bytes) for d in r.largest_dirs],
+        age_buckets=[AgeBucketOut(label=a.label, files=a.files, bytes=a.bytes) for a in r.age_buckets],
+        clutter=[_folder_file(f) for f in r.clutter],
+    )
+
+
+def find_duplicates(path: str) -> list[DuplicateGroupOut]:
+    return [
+        DuplicateGroupOut(size=g.size, paths=list(g.paths), wasted=g.wasted)
+        for g in scanner.find_duplicates(_require_dir(path))
+    ]
 
 
 def find_secrets(path: str) -> list[SecretOut]:

@@ -1,6 +1,6 @@
 // api.js - client for the local FastAPI service (fetch wrappers for
-// /health, /workspace, /scan and /secrets). Mirrors the contract in
-// api/devscope_api/schemas.py.
+// /health, /folder, /duplicates, /workspace, /scan and /secrets). Mirrors the
+// contract in api/devscope_api/schemas.py.
 
 let baseUrl = null;
 
@@ -11,10 +11,10 @@ export async function connect() {
   return baseUrl !== null;
 }
 
-// Open the native folder dialog. Returns a path or null if cancelled.
-export function pickFolder() {
-  return window.devscope?.pickFolder?.() ?? Promise.resolve(null);
-}
+// --- Native features, available only inside Electron ---
+export const pickFolder = () => window.devscope?.pickFolder?.() ?? Promise.resolve(null);
+export const getKnownFolders = () => window.devscope?.getKnownFolders?.() ?? Promise.resolve({});
+export const reveal = (path) => window.devscope?.reveal?.(path); // show a file in the file manager
 
 // POST a JSON body to the API and return the parsed JSON response.
 async function post(endpoint, body) {
@@ -31,6 +31,8 @@ async function post(endpoint, body) {
   return res.json();
 }
 
+export const folder = (path) => post('/folder', { path });             // any folder: categories, sizes, ages
+export const duplicates = (path) => post('/duplicates', { path });     // identical files (slower)
+export const workspace = (root) => post('/workspace', { root });       // code projects under root
 export const scan = (path) => post('/scan', { path });                 // line/language stats
-export const workspace = (root) => post('/workspace', { root });       // every project under root
 export const secrets = (path) => post('/secrets', { path });           // possible leaked secrets

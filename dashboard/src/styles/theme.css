@@ -2,30 +2,39 @@
 
 :root {
   /* surfaces, from page background to raised cards */
-  --bg: #0d1117;
-  --surface: #161b22;
-  --surface-2: #1f2630;
-  --border: #2a313c;
+  --bg: #0a0e16;
+  --bg-glow: radial-gradient(900px 420px at 15% -10%, rgba(91, 140, 255, 0.14), transparent 60%),
+             radial-gradient(700px 380px at 95% 0%, rgba(155, 107, 255, 0.10), transparent 55%);
+  --surface: #111827;
+  --surface-2: #19223a;
+  --border: #232d45;
+  --border-soft: #1b2338;
 
   /* text */
-  --text: #e6edf3;
-  --text-muted: #8b949e;
+  --text: #e8edf6;
+  --text-muted: #8a96ad;
 
   /* accent + status */
-  --accent: #58a6ff;
-  --danger: #f85149;
-  --ok: #3fb950;
+  --accent: #5b8cff;
+  --accent-2: #9b6bff;
+  --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent-2));
+  --danger: #ff6b6b;
+  --warn: #f5a45d;
+  --ok: #46d17a;
 
-  /* categorical palette used by the language chart */
-  --series-1: #58a6ff;
-  --series-2: #bc8cff;
-  --series-3: #3fb950;
-  --series-4: #f0883e;
-  --series-5: #db61a2;
-  --series-6: #39c5cf;
+  /* categorical palette used by charts and bars */
+  --series-1: #5b8cff;
+  --series-2: #9b6bff;
+  --series-3: #46d17a;
+  --series-4: #f5a45d;
+  --series-5: #ee6fa8;
+  --series-6: #38c7d4;
+  --series-7: #8a96ad;
 
-  --radius: 12px;
+  --radius: 14px;
+  --radius-sm: 8px;
   --gap: 16px;
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.25);
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
 }

@@ -32,7 +32,7 @@ pub const JUNK_DIRS: &[&str] = &[
 /// Folders that are junk wherever they appear (monorepos nest them, e.g.
 /// dashboard/node_modules). Generic names like `dist` and `build` only count at
 /// the project's top level, since deeper they may be real source folders.
-const ANYWHERE: &[&str] = &[
+pub const ANYWHERE: &[&str] = &[
     "node_modules", "target", "venv", ".venv", "__pycache__", ".next", ".svelte-kit",
 ];
 
@@ -43,6 +43,13 @@ fn junk_root(parts: &[&str]) -> Option<String> {
     (0..dirs.len())
         .find(|&i| ANYWHERE.contains(&dirs[i]) || (i == 0 && JUNK_DIRS.contains(&dirs[i])))
         .map(|i| dirs[..=i].join("/"))
+}
+
+/// How many projects sit under `root`, without measuring them (cheap).
+pub fn count(root: &Path, max_depth: usize) -> u64 {
+    let mut found = Vec::new();
+    find(root, 0, max_depth, &mut found);
+    found.len() as u64
 }
 
 /// Find projects under `root`, descending at most `max_depth` levels.

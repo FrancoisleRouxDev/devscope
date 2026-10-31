@@ -1,12 +1,23 @@
 # devscope
 
-A cross-platform (Windows, macOS, Linux) desktop app that gives you an overview
-of every coding project in your workspace: how big each one is, how much of that
-is rebuildable junk, whether work is at risk of being lost, and whether secrets
-have been left in the code. It runs entirely on your machine.
+A cross-platform (Windows, macOS, Linux) desktop app that shows you what is
+inside any folder on your computer: what takes the space, what is old, what is
+clutter or duplicated, and, for code folders, which projects have unsaved work
+or leaked secrets. It runs entirely on your machine and never changes your files.
 
 ## What it is and what it's for
 
+Point devscope at any folder (Downloads, Documents, Desktop, a whole drive) and
+it gives you a **folder overview**:
+
+- **What's taking space**, broken down by file type (video, images, documents, archives, installers, code, ...).
+- **How old it is**: how much sits untouched for months or years.
+- **Biggest files and subfolders**, with a button to show each one in your file manager.
+- **Likely clutter**: installers you have probably already used and repeat downloads like `file (1).pdf`
+  (files inside `node_modules`, virtual envs and other tooling folders are ignored).
+- **Duplicate files**: identical content, confirmed byte for byte (on demand, since it reads file contents).
+
+If the folder contains code projects, devscope also opens a **developer view**.
 Over the years a developer's workspace fills up with dozens of project folders,
 and nobody keeps track of them. That causes three real problems devscope tackles:
 
@@ -27,20 +38,22 @@ Everything is computed locally by a fast Rust core. Nothing leaves your machine.
 
 ## Usage
 
-1. Start the app and click **Choose workspace…**, then pick the folder that holds your projects.
-2. devscope finds every project inside it (a folder with `.git`, `package.json`,
-   `Cargo.toml`, `pyproject.toml`, ...) and lists size, reclaimable space, last
-   activity and git state.
-3. Click a project for its language breakdown, largest files and secrets check.
+1. Start the app and click **Downloads**, **Documents** or **Desktop**, or **Choose folder…** for anything else.
+2. The **Folder overview** tab shows size by type, file ages, biggest files and
+   folders, and likely clutter. Click **Find duplicates** to search for identical files.
+3. If the folder holds two or more code projects (folders with `.git`, `package.json`,
+   `Cargo.toml`, `pyproject.toml`, ...), the **Code projects** tab opens: size,
+   reclaimable space, last activity and git state for each.
+4. Click a project for its language breakdown, largest source files and secrets check.
 
 ## Progress
 
 | Area | Status |
 |------|--------|
-| Rust scanner: language/line stats, project discovery, junk sizing, secrets check | Working; unit-tested |
-| FastAPI service: `/health`, `/scan`, `/workspace`, `/secrets`, git status | Working; tested (pytest) and run against real folders |
-| Electron shell: window, folder dialog, API process management, parent-exit watchdog | Working |
-| Svelte dashboard: workspace overview, project list, details, secrets panel | Written and builds; the folder-dialog flow has not been clicked through by hand yet |
+| Rust scanner: folder analysis, duplicates, language/line stats, project discovery, junk sizing, secrets check | Working; unit-tested |
+| FastAPI service: `/health`, `/folder`, `/duplicates`, `/workspace`, `/scan`, `/secrets`, git status | Working; tested (pytest) and run against real folders |
+| Electron shell: window, folder dialog, quick-access folders, show-in-file-manager, API process management, parent-exit watchdog | Working |
+| Svelte dashboard: folder overview, duplicates, code projects view, details, secrets panel | Working; checked by running the real app against real folders and screenshotting each view. The native folder dialog itself has not been clicked through by hand |
 | Dependency vulnerability check | Not started |
 | One-click cleanup of junk folders (with dry run) | Not started |
 | Scan history and trends | Not started |
@@ -48,7 +61,11 @@ Everything is computed locally by a fast Rust core. Nothing leaves your machine.
 
 **Known limitations**
 - The language table covers Rust, Python, JS, TS, Svelte, HTML, CSS, TOML and
-  Markdown. Other languages are not counted in line stats yet.
+  Markdown. Other languages are not counted in line stats yet (file-type totals
+  in the folder overview cover all files).
+- File categories come from the extension only, and "clutter" is a heuristic
+  (installers and `name (1).ext` copies), so review before deleting anything.
+  devscope has no delete action yet.
 - Secret detection is heuristic (known token formats plus risky file names) and
   can produce false positives or miss custom formats.
 - Scanning is read-only; devscope never modifies your projects.
@@ -66,15 +83,18 @@ Everything is computed locally by a fast Rust core. Nothing leaves your machine.
                                │ HTTP, 127.0.0.1 only
                     ┌──────────▼──────────┐
                     │ FastAPI (api/)      │  Python
-                    │ /health /workspace  │
-                    │ /scan   /secrets    │
-                    │ + git status        │
+                    │ /health  /folder    │
+                    │ /duplicates         │
+                    │ /workspace /scan    │
+                    │ /secrets + git info │
                     └──────────┬──────────┘
                                │ PyO3 (in-process call)
                     ┌──────────▼──────────┐
                     │ Scanner (scanner/)  │  Rust
-                    │ discover, measure,  │
-                    │ count lines, secrets│
+                    │ folder analysis,    │
+                    │ duplicates, project │
+                    │ discovery, lines,   │
+                    │ secrets             │
                     └─────────────────────┘
 ```
 
@@ -92,6 +112,8 @@ Everything is computed locally by a fast Rust core. Nothing leaves your machine.
 | Endpoint | Body | Returns |
 |----------|------|---------|
 | `GET /health` | | `{ "status": "ok" }` |
+| `POST /folder` | `{ path }` | Folder overview: `total_files, total_bytes, project_count, categories[], largest_files[], largest_dirs[], age_buckets[], clutter[]` |
+| `POST /duplicates` | `{ path }` | Groups of identical files: `size, paths[], wasted` (slower; run on demand) |
 | `POST /workspace` | `{ root, max_depth? }` | Projects: `path, name, kinds, size_bytes, junk_bytes, junk_dirs, last_modified, git` |
 | `POST /scan` | `{ path }` | `root, total_files, total_lines, code, comments, blanks, duration_ms, languages[], largest_files[]` |
 | `POST /secrets` | `{ path }` | Findings: `path, line, kind` (never the secret value) |
@@ -103,11 +125,14 @@ that is not a git repository. The same shapes are defined in
 
 ### Data flow
 
-1. User picks a workspace folder (Electron native dialog via the preload bridge).
-2. Svelte calls `POST /workspace`; FastAPI calls `devscope_scanner.discover_projects`
-   (Rust) and adds git status per project.
-3. Clicking a project calls `POST /scan` and `POST /secrets` in parallel.
-4. The UI renders the results.
+1. User picks a folder (Electron native dialog via the preload bridge) or a quick-access folder.
+2. Svelte calls `POST /folder`; FastAPI calls `devscope_scanner.analyze_folder` (Rust),
+   which walks the folder in parallel and returns the overview, plus a count of code projects inside.
+3. If there are two or more projects, Svelte also calls `POST /workspace`
+   (`discover_projects` in Rust, plus git status per project from the `git` CLI).
+4. Clicking a project calls `POST /scan` and `POST /secrets` in parallel.
+5. **Find duplicates** calls `POST /duplicates` (group by size, hash candidates, confirm byte for byte).
+6. The UI renders the results.
 
 ### Process lifecycle
 
@@ -134,7 +159,7 @@ devscope/
 │   ├── Cargo.toml
 │   ├── pyproject.toml       maturin config
 │   └── src/  lib.rs  walker.rs  counter.rs  languages.rs  types.rs
-│             discovery.rs  secrets.rs
+│             folder.rs  duplicates.rs  discovery.rs  secrets.rs
 ├── api/                     FastAPI service
 │   ├── pyproject.toml  requirements.txt
 │   ├── devscope_api/  main.py  config.py  schemas.py  scanner_bridge.py
@@ -172,7 +197,7 @@ Tests: `cargo test` in `scanner/`, `python -m pytest` in `api/`.
 ## Roadmap
 
 1. Dependency vulnerability check across all projects (reads `package.json`, `Cargo.lock`, `requirements.txt`).
-2. One-click cleanup of junk folders, with a dry-run preview and confirmation.
+2. Safe cleanup: move clutter, duplicates and junk folders to the recycle bin, with a preview and confirmation.
 3. Scan history and trends.
 4. Wider language support and tuning of secret detection.
 5. Packaging and CI for all three platforms.

@@ -1,5 +1,7 @@
-<!-- FileTable.svelte - sortable table of largest files / per-language details. -->
+<!-- FileTable.svelte - sortable table of the largest source files in a project. -->
 <script>
+  import Panel from './Panel.svelte';
+
   // files: [{ path, language, code, comments, blanks }]
   let { files } = $props();
 
@@ -20,40 +22,44 @@
     if (sortKey === key) descending = !descending;
     else { sortKey = key; descending = true; }
   }
+
+  const arrow = (key) => (sortKey === key ? (descending ? ' ↓' : ' ↑') : '');
 </script>
 
-<section class="panel">
-  <h2>Largest files</h2>
-  <table>
-    <thead>
-      <tr>
-        <th><button onclick={() => sortBy('path')}>File</button></th>
-        <th><button onclick={() => sortBy('language')}>Language</button></th>
-        <th class="num"><button onclick={() => sortBy('code')}>Code</button></th>
-        <th class="num"><button onclick={() => sortBy('comments')}>Comments</button></th>
-        <th class="num"><button onclick={() => sortBy('blanks')}>Blank</button></th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each rows as f (f.path)}
+<Panel title="Largest source files" subtitle="Click a column to sort">
+  <div class="scroll">
+    <table>
+      <thead>
         <tr>
-          <td class="path" title={f.path}>{f.path}</td>
-          <td>{f.language}</td>
-          <td class="num">{f.code.toLocaleString()}</td>
-          <td class="num">{f.comments.toLocaleString()}</td>
-          <td class="num">{f.blanks.toLocaleString()}</td>
+          <th><button onclick={() => sortBy('path')}>File{arrow('path')}</button></th>
+          <th><button onclick={() => sortBy('language')}>Language{arrow('language')}</button></th>
+          <th class="num"><button onclick={() => sortBy('code')}>Code{arrow('code')}</button></th>
+          <th class="num"><button onclick={() => sortBy('comments')}>Comments{arrow('comments')}</button></th>
+          <th class="num"><button onclick={() => sortBy('blanks')}>Blank{arrow('blanks')}</button></th>
         </tr>
-      {/each}
-    </tbody>
-  </table>
-</section>
+      </thead>
+      <tbody>
+        {#each rows as f (f.path)}
+          <tr>
+            <td class="path" title={f.path}>{f.path}</td>
+            <td>{f.language}</td>
+            <td class="num">{f.code.toLocaleString()}</td>
+            <td class="num">{f.comments.toLocaleString()}</td>
+            <td class="num">{f.blanks.toLocaleString()}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
+</Panel>
 
 <style>
-  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; overflow-x: auto; }
-  h2 { font-size: 1rem; margin-bottom: 14px; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-  th button { background: none; border: 0; color: var(--text-muted); font-weight: 600; }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 9px 10px; border-top: 1px solid var(--border-soft); }
+  thead th { border-top: 0; }
+  th button { background: none; border: 0; color: var(--text-muted); font-weight: 600; padding: 0; }
+  th button:hover { color: var(--text); }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
-  .path { font-family: var(--mono); max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+  .path { font-family: var(--mono); font-size: 0.78rem; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
 </style>

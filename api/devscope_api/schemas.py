@@ -62,6 +62,52 @@ class ProjectOut(BaseModel):
     git: GitStatus | None  # None when the project is not a git repository
 
 
+class CategoryOut(BaseModel):
+    name: str
+    files: int
+    bytes: int
+
+
+class FolderFileOut(BaseModel):
+    path: str
+    size: int
+    modified: int  # unix seconds, 0 if unknown
+    category: str
+    reason: str  # why it is listed as clutter; empty otherwise
+
+
+class DirOut(BaseModel):
+    path: str
+    name: str
+    files: int
+    bytes: int
+
+
+class AgeBucketOut(BaseModel):
+    label: str
+    files: int
+    bytes: int
+
+
+class FolderResponse(BaseModel):
+    root: str
+    total_files: int
+    total_bytes: int
+    duration_ms: int
+    project_count: int  # code projects found inside the folder
+    categories: list[CategoryOut]
+    largest_files: list[FolderFileOut]
+    largest_dirs: list[DirOut]
+    age_buckets: list[AgeBucketOut]
+    clutter: list[FolderFileOut]
+
+
+class DuplicateGroupOut(BaseModel):
+    size: int
+    paths: list[str]
+    wasted: int  # bytes freed by keeping one copy
+
+
 class SecretOut(BaseModel):
     path: str
     line: int  # 0 = whole-file finding

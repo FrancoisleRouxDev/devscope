@@ -43,6 +43,35 @@ def test_workspace_finds_project_and_junk(tmp_path):
     assert projects[0]["git"] is None  # not a git repo
 
 
+def test_folder_analysis(tmp_path):
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "photo.jpg").write_bytes(b"x" * 300)
+    (tmp_path / "setup.exe").write_bytes(b"x" * 200)
+    (tmp_path / "report (1).pdf").write_bytes(b"x" * 50)
+    (tmp_path / "sub" / "film.mp4").write_bytes(b"x" * 1000)
+    data = client.post("/folder", json={"path": str(tmp_path)}).json()
+    assert (data["total_files"], data["total_bytes"]) == (4, 1550)
+    assert data["categories"][0]["name"] == "Video"
+    assert data["largest_dirs"][0]["name"] == "sub"
+    assert {c["reason"] for c in data["clutter"]} == {"installer", "copy"}
+    assert len(data["clutter"]) == 2
+    assert data["project_count"] == 0
+
+
+def test_folder_detects_projects(tmp_path):
+    make_project(tmp_path)
+    assert client.post("/folder", json={"path": str(tmp_path)}).json()["project_count"] == 1
+
+
+def test_duplicates_only_identical(tmp_path):
+    (tmp_path / "a.bin").write_bytes(b"A" * 2048)
+    (tmp_path / "b.bin").write_bytes(b"A" * 2048)
+    (tmp_path / "c.bin").write_bytes(b"B" * 2048)  # same size, different content
+    groups = client.post("/duplicates", json={"path": str(tmp_path)}).json()
+    assert len(groups) == 1
+    assert groups[0]["wasted"] == 2048 and len(groups[0]["paths"]) == 2
+
+
 def test_secrets_found_without_value(tmp_path):
     proj = make_project(tmp_path)
     found = client.post("/secrets", json={"path": str(proj)}).json()

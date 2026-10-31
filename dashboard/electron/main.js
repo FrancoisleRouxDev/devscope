@@ -3,7 +3,7 @@
 // index.html (prod), starts/stops the Python API via backend.js, and
 // handles native dialogs such as "choose project folder".
 
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getBaseUrl, startBackend, stopBackend } from './backend.js';
@@ -47,6 +47,18 @@ ipcMain.handle('dialog:pickFolder', async () => {
   });
   return canceled ? null : filePaths[0];
 });
+
+// Reveal a file in Explorer/Finder/the file manager. Only absolute string paths are accepted.
+ipcMain.handle('shell:reveal', (_event, target) => {
+  if (typeof target === 'string' && path.isAbsolute(target)) shell.showItemInFolder(target);
+});
+
+// Well-known folders for one-click analysis (paths come from the OS, not the renderer).
+ipcMain.handle('folders:known', () => ({
+  downloads: app.getPath('downloads'),
+  documents: app.getPath('documents'),
+  desktop: app.getPath('desktop'),
+}));
 
 // URL of the Python API (null while it is offline).
 ipcMain.handle('api:baseUrl', () => getBaseUrl());

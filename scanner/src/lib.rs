@@ -6,6 +6,8 @@
 
 mod counter;
 mod discovery;
+mod duplicates;
+mod folder;
 mod languages;
 mod secrets;
 mod types;
@@ -19,7 +21,10 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rayon::prelude::*;
 
-use types::{FileStats, LanguageStats, ProjectInfo, ScanOptions, ScanResult, SecretFinding};
+use types::{
+    AgeBucket, CategoryStats, DirStat, DuplicateGroup, FileStats, FolderFile, FolderReport, LanguageStats,
+    ProjectInfo, ScanOptions, ScanResult, SecretFinding,
+};
 
 const LARGEST_FILES_LIMIT: usize = 10;
 
@@ -48,6 +53,27 @@ fn discover_projects(py: Python<'_>, root: &str, max_depth: usize) -> PyResult<V
         return Err(PyValueError::new_err(format!("not a directory: {}", root.display())));
     }
     Ok(py.allow_threads(|| discovery::discover(root, max_depth)))
+}
+
+/// Analyse any folder: categories, biggest files/folders, file ages, clutter.
+#[pyfunction]
+fn analyze_folder(py: Python<'_>, path: &str) -> PyResult<FolderReport> {
+    let root = Path::new(path);
+    if !root.is_dir() {
+        return Err(PyValueError::new_err(format!("not a directory: {path}")));
+    }
+    Ok(py.allow_threads(|| folder::analyze(root)))
+}
+
+/// Find files with identical content under `path` (slower; run on demand).
+#[pyfunction]
+#[pyo3(signature = (path, min_size=1024))]
+fn find_duplicates(py: Python<'_>, path: &str, min_size: u64) -> PyResult<Vec<DuplicateGroup>> {
+    let root = Path::new(path);
+    if !root.is_dir() {
+        return Err(PyValueError::new_err(format!("not a directory: {path}")));
+    }
+    Ok(py.allow_threads(|| duplicates::find(root, min_size)))
 }
 
 /// Look for possible leaked secrets inside one project folder.
@@ -115,6 +141,14 @@ fn devscope_scanner(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ScanResult>()?;
     m.add_class::<ProjectInfo>()?;
     m.add_class::<SecretFinding>()?;
+    m.add_class::<CategoryStats>()?;
+    m.add_class::<FolderFile>()?;
+    m.add_class::<DirStat>()?;
+    m.add_class::<AgeBucket>()?;
+    m.add_class::<FolderReport>()?;
+    m.add_class::<DuplicateGroup>()?;
+    m.add_function(wrap_pyfunction!(analyze_folder, m)?)?;
+    m.add_function(wrap_pyfunction!(find_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(scan_project, m)?)?;
     m.add_function(wrap_pyfunction!(discover_projects, m)?)?;
     m.add_function(wrap_pyfunction!(find_secrets, m)?)?;

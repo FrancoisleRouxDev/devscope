@@ -78,6 +78,74 @@ pub struct SecretFinding {
     pub kind: String,
 }
 
+/// Files and bytes for one category (Images, Video, Archives, ...).
+#[pyclass(get_all)]
+#[derive(Clone, Debug, Default)]
+pub struct CategoryStats {
+    pub name: String,
+    pub files: u64,
+    pub bytes: u64,
+}
+
+/// One file in a folder report.
+#[pyclass(get_all)]
+#[derive(Clone, Debug, Default)]
+pub struct FolderFile {
+    pub path: String,
+    pub size: u64,
+    /// Modification time, unix seconds (0 if unknown).
+    pub modified: i64,
+    pub category: String,
+    /// Why it is listed as clutter ("installer", "copy"); empty otherwise.
+    pub reason: String,
+}
+
+/// A top-level subfolder and how much it holds.
+#[pyclass(get_all)]
+#[derive(Clone, Debug, Default)]
+pub struct DirStat {
+    pub path: String,
+    pub name: String,
+    pub files: u64,
+    pub bytes: u64,
+}
+
+/// Files whose last change falls in an age range.
+#[pyclass(get_all)]
+#[derive(Clone, Debug, Default)]
+pub struct AgeBucket {
+    pub label: String,
+    pub files: u64,
+    pub bytes: u64,
+}
+
+/// General analysis of any folder (Downloads, Documents, a drive, ...).
+#[pyclass(get_all)]
+#[derive(Clone, Debug, Default)]
+pub struct FolderReport {
+    pub root: String,
+    pub total_files: u64,
+    pub total_bytes: u64,
+    pub duration_ms: u64,
+    /// Code projects found inside (used to pick the best view).
+    pub project_count: u64,
+    pub categories: Vec<CategoryStats>,
+    pub largest_files: Vec<FolderFile>,
+    pub largest_dirs: Vec<DirStat>,
+    pub age_buckets: Vec<AgeBucket>,
+    pub clutter: Vec<FolderFile>,
+}
+
+/// Files with identical content.
+#[pyclass(get_all)]
+#[derive(Clone, Debug, Default)]
+pub struct DuplicateGroup {
+    pub size: u64,
+    pub paths: Vec<String>,
+    /// Space freed by keeping just one copy: size * (copies - 1).
+    pub wasted: u64,
+}
+
 /// Everything the API needs to answer one scan request.
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Default)]
