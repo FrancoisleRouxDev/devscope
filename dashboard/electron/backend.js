@@ -66,7 +66,13 @@ export async function startBackend() {
   child = spawn(
     findPython(),
     ['-m', 'uvicorn', 'devscope_api.main:app', '--host', HOST, '--port', String(port)],
-    { cwd: API_DIR, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
+    {
+      cwd: API_DIR,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      // The API exits on its own if this process dies without cleaning up (see api/devscope_api/watchdog.py).
+      env: { ...process.env, DEVSCOPE_PARENT_PID: String(process.pid) },
+    },
   );
   child.stdout.on('data', (d) => console.log(`[api] ${d}`.trimEnd()));
   child.stderr.on('data', (d) => console.error(`[api] ${d}`.trimEnd()));

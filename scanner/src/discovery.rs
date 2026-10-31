@@ -29,6 +29,22 @@ pub const JUNK_DIRS: &[&str] = &[
     "node_modules", "target", "venv", ".venv", "__pycache__", "dist", "build", ".next", ".svelte-kit",
 ];
 
+/// Folders that are junk wherever they appear (monorepos nest them, e.g.
+/// dashboard/node_modules). Generic names like `dist` and `build` only count at
+/// the project's top level, since deeper they may be real source folders.
+const ANYWHERE: &[&str] = &[
+    "node_modules", "target", "venv", ".venv", "__pycache__", ".next", ".svelte-kit",
+];
+
+/// If this file (path parts relative to the project) sits inside a junk folder,
+/// return that folder's relative path, e.g. "dashboard/node_modules".
+fn junk_root(parts: &[&str]) -> Option<String> {
+    let dirs = &parts[..parts.len().saturating_sub(1)]; // drop the file name
+    (0..dirs.len())
+        .find(|&i| ANYWHERE.contains(&dirs[i]) || (i == 0 && JUNK_DIRS.contains(&dirs[i])))
+        .map(|i| dirs[..=i].join("/"))
+}
+
 /// Find projects under `root`, descending at most `max_depth` levels.
 pub fn discover(root: &Path, max_depth: usize) -> Vec<ProjectInfo> {
     let mut found = Vec::new();
@@ -87,11 +103,12 @@ fn measure(path: &Path, kinds: &[String]) -> ProjectInfo {
         info.size_bytes += len;
 
         let rel = entry.path().strip_prefix(path).unwrap_or(entry.path());
-        let top = rel.components().next().and_then(|c| c.as_os_str().to_str()).unwrap_or("");
+        let parts: Vec<&str> = rel.components().filter_map(|c| c.as_os_str().to_str()).collect();
+        let top = parts.first().copied().unwrap_or("");
 
-        if JUNK_DIRS.contains(&top) && rel.components().count() > 1 {
+        if let Some(dir) = junk_root(&parts) {
             info.junk_bytes += len;
-            junk.insert(top.to_string());
+            junk.insert(dir);
         } else if top != ".git" {
             let secs = meta
                 .modified()
@@ -118,12 +135,17 @@ mod tests {
         fs::write(root.join("a/package.json"), "{}").unwrap();
         fs::write(root.join("a/node_modules/dep/index.js"), "x".repeat(100)).unwrap();
         fs::write(root.join("group/b/Cargo.toml"), "").unwrap();
+        // junk nested in a monorepo subfolder, and a non-junk nested "build" source folder
+        fs::create_dir_all(root.join("a/web/node_modules")).unwrap();
+        fs::write(root.join("a/web/node_modules/y.js"), "y".repeat(40)).unwrap();
+        fs::create_dir_all(root.join("a/src/build")).unwrap();
+        fs::write(root.join("a/src/build/real.rs"), "z".repeat(7)).unwrap();
 
         let found = discover(&root, 4);
         assert_eq!(found.len(), 2);
         let a = found.iter().find(|p| p.name == "a").unwrap();
-        assert_eq!(a.junk_bytes, 100);
-        assert_eq!(a.junk_dirs, vec!["node_modules"]);
+        assert_eq!(a.junk_bytes, 140);
+        assert_eq!(a.junk_dirs, vec!["node_modules", "web/node_modules"]);
         assert!(found.iter().any(|p| p.name == "b" && p.kinds == vec!["rust"]));
         let _ = fs::remove_dir_all(&root);
     }

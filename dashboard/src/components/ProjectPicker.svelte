@@ -1,13 +1,11 @@
 <!-- ProjectPicker.svelte - button/drop zone to choose a project folder via the preload bridge. -->
 <script>
-  // `onpick` is a callback the parent passes in; we call it with the chosen path.
+  // `onpick` is a callback the parent passes in; we call it when clicked.
   // `$props()` is how Svelte 5 components receive inputs.
-  let { onpick, disabled = false } = $props();
+  let { onpick, disabled = false, label = 'Choose folder…' } = $props();
 </script>
 
-<button class="picker" {disabled} onclick={onpick}>
-  Choose project folder…
-</button>
+<button class="picker" {disabled} onclick={onpick}>{label}</button>
 
 <style>
   .picker {

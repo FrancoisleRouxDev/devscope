@@ -1,5 +1,6 @@
 // api.js - client for the local FastAPI service (fetch wrappers for
-// /health and /scan). Mirrors the contract in api/devscope_api/schemas.py.
+// /health, /workspace, /scan and /secrets). Mirrors the contract in
+// api/devscope_api/schemas.py.
 
 let baseUrl = null;
 
@@ -15,14 +16,21 @@ export function pickFolder() {
   return window.devscope?.pickFolder?.() ?? Promise.resolve(null);
 }
 
-// POST /scan with the folder path; resolves to the ScanResult JSON.
-export async function scan(path) {
+// POST a JSON body to the API and return the parsed JSON response.
+async function post(endpoint, body) {
   if (!baseUrl) throw new Error('API is offline');
-  const res = await fetch(`${baseUrl}/scan`, {
+  const res = await fetch(`${baseUrl}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path }),
+    body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Scan failed (${res.status})`);
+  if (!res.ok) {
+    const detail = (await res.json().catch(() => null))?.detail;
+    throw new Error(detail ?? `Request failed (${res.status})`);
+  }
   return res.json();
 }
+
+export const scan = (path) => post('/scan', { path });                 // line/language stats
+export const workspace = (root) => post('/workspace', { root });       // every project under root
+export const secrets = (path) => post('/secrets', { path });           // possible leaked secrets
